@@ -1,99 +1,60 @@
-# Training Configuration for QLoRA Fine-tuning
-# This file centralizes all training parameters for Linux command generation models
+# Training Configuration for QLoRA Fine-tuning on Linux Command Generation
 
-# Global settings applied to all models
+# Global settings
 global_settings:
-  cache_file: "data/command_cache.json"
-  tokenized_cache_dir: "tokenized_cache"
+  cache_file: "./cache/linux_commands_dataset.json"
+  tokenized_cache_dir: "./tokenized_cache"
   output_base_dir: "./results"
   
   # Hardware settings
   num_workers: 4
   use_fp16: true
-  use_8bit_optimizer: true
+  optimizer: "paged_adamw_8bit"  
   
-  # Quantization settings (matching QLoRA paper)
+  # Quantization settings 
   quantization:
-    load_in_4bit: true
-    bnb_4bit_compute_dtype: "float16"
-    bnb_4bit_quant_type: "nf4"
-    bnb_4bit_use_double_quant: true
+    load_in_4bit: true           # 4-bit loading Enabled
+    bnb_4bit_compute_dtype: "float16"  # Compute dtype float16
+    bnb_4bit_quant_type: "nf4"   # Quant type NF4
+    bnb_4bit_use_double_quant: true  # Double quantization Enabled
 
 # Model-specific configurations
 models:
-  - name: "codellama-7b-linux-v1"
-    path: "codellama/CodeLlama-7b-hf"
-    description: "CodeLlama 7B fine-tuned on Linux commands"
+  # Llama-3.2-1B - BS=4, GA=4, GC=Off
+  - name: "llama-3.2-1b-linux-v1"
+    base_model_path: "./models/meta-llama/Llama-3.2-1B"
+    hf_repo_id: "meta-llama/Llama-3.2-1B"
     enabled: true
     
-    # LoRA configuration
+    # LoRA configuration 
     lora:
-      r: 16
-      alpha: 32
-      dropout: 0.1
-      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
-      bias: "none"
-      task_type: "CAUSAL_LM"
+      r: 16                          # Rank (r) 16
+      alpha: 32                       # Alpha (α) 32
+      dropout: 0.1                     # Dropout 0.1
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]  # Target modules
+      bias: "none"                     # Bias none
     
-    # Training hyperparameters
+    # Training hyperparameters 
     training:
-      num_epochs: 3
-      batch_size: 8
-      gradient_accumulation_steps: 2  # Auto-adjusted based on batch size
-      learning_rate: 2.0e-4
-      warmup_steps: 100
-      save_steps: 500
-      eval_steps: 500
+      num_epochs: 3                    # Num epochs 3
+      batch_size: 4                     # BS=4
+      gradient_accumulation_steps: 4    # GA=4
+      learning_rate: 2.0e-4             # Learning rate 2 × 10⁻⁴
+      warmup_steps: 100                  # Warmup steps 100
+      save_steps: 500                    # Save steps 500
+      eval_steps: 500                    # Eval steps 500
       logging_steps: 10
       save_total_limit: 2
       
-    # Data configuration
-    data:
-      max_seq_length: 512
-      prompt_template: "Convert to Linux command: {text} {command}"
-      padding: "max_length"
-      truncation: true
-    
-    # Model specific settings
-    disable_gradient_checkpointing: false
-    attn_implementation: "eager"  # Use "flash_attention_2" if available
+    # Model-specific settings
+    disable_gradient_checkpointing: true  # GC=Off
+    max_seq_length: 512                   # Sequence length 512
 
-  - name: "deepseek-coder-6.7b-linux-v1"
-    path: "deepseek-ai/deepseek-coder-6.7b-instruct"
-    description: "DeepSeek Coder 6.7B fine-tuned on Linux commands"
+  # Qwen2.5-1.5B - BS=8, GA=2, GC=Off
+  - name: "qwen2.5-1.5b-linux-v1"
+    base_model_path: "./models/Qwen/Qwen2.5-1.5B-Instruct"
+    hf_repo_id: "Qwen/Qwen2.5-1.5B-Instruct"
     enabled: true
-    
-    lora:
-      r: 16
-      alpha: 32
-      dropout: 0.1
-      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-      bias: "none"
-      task_type: "CAUSAL_LM"
-    
-    training:
-      num_epochs: 3
-      batch_size: 4  # Smaller batch for larger model
-      gradient_accumulation_steps: 4  # Adjusted for batch size
-      learning_rate: 1.5e-4
-      warmup_steps: 100
-      save_steps: 500
-      eval_steps: 500
-      logging_steps: 10
-      save_total_limit: 2
-    
-    data:
-      max_seq_length: 512
-      prompt_template: "Convert to Linux command: {text} {command}"
-      padding: "max_length"
-      truncation: true
-    
-    disable_gradient_checkpointing: false
-
-  - name: "mistral-7b-linux-v1"
-    path: "mistralai/Mistral-7B-v0.1"
-    description: "Mistral 7B fine-tuned on Linux commands"
-    enabled: false  # Disabled for now
     
     lora:
       r: 16
@@ -101,12 +62,11 @@ models:
       dropout: 0.1
       target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
       bias: "none"
-      task_type: "CAUSAL_LM"
     
     training:
       num_epochs: 3
-      batch_size: 8
-      gradient_accumulation_steps: 2
+      batch_size: 8                     # BS=8
+      gradient_accumulation_steps: 2    # GA=2
       learning_rate: 2.0e-4
       warmup_steps: 100
       save_steps: 500
@@ -114,19 +74,59 @@ models:
       logging_steps: 10
       save_total_limit: 2
     
-    data:
-      max_seq_length: 512
-      prompt_template: "Convert to Linux command: {text} {command}"
-      padding: "max_length"
-      truncation: true
-    
-    disable_gradient_checkpointing: false
+    disable_gradient_checkpointing: true  # GC=Off
+    max_seq_length: 512
 
-# Batch size to gradient accumulation mapping
-# Used for automatic calculation of gradient_accumulation_steps
-batch_size_to_grad_accum:
-  8: 2    # For faster iterations with larger batch
-  4: 4    # Balanced for medium models
-  2: 8    # For very small batches
-  1: 16   # For single-sample batches
-  default: 8  # Default fallback
+  # Gemma-3-1B - BS=8, GA=2, GC=Off
+  - name: "gemma-3-1b-linux-v1"
+    base_model_path: "./models/google/gemma-3-1b-it"
+    hf_repo_id: "google/gemma-3-1b-it"
+    enabled: true
+    
+    lora:
+      r: 16
+      alpha: 32
+      dropout: 0.1
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      bias: "none"
+    
+    training:
+      num_epochs: 3
+      batch_size: 8                     # BS=8
+      gradient_accumulation_steps: 2    # GA=2
+      learning_rate: 2.0e-4
+      warmup_steps: 100
+      save_steps: 500
+      eval_steps: 500
+      logging_steps: 10
+      save_total_limit: 2
+    
+    disable_gradient_checkpointing: true  # GC=Off
+    max_seq_length: 512
+
+  # Phi-3-mini - BS=4, GA=4, GC=On
+  - name: "phi-3-mini-linux-v1"
+    base_model_path: "./models/microsoft/Phi-3-mini-4k-instruct"
+    hf_repo_id: "microsoft/Phi-3-mini-4k-instruct"
+    enabled: true
+    
+    lora:
+      r: 16
+      alpha: 32
+      dropout: 0.1
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      bias: "none"
+    
+    training:
+      num_epochs: 3
+      batch_size: 4                     # BS=4
+      gradient_accumulation_steps: 4    # GA=4
+      learning_rate: 2.0e-4
+      warmup_steps: 100
+      save_steps: 500
+      eval_steps: 500
+      logging_steps: 10
+      save_total_limit: 2
+    
+    disable_gradient_checkpointing: false  # GC=On (note: GC=On means checkpointing enabled)
+    max_seq_length: 512
