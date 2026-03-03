@@ -1,0 +1,141 @@
+# Evaluation Configuration for QLoRA Fine-tuned Models
+
+# Global evaluation settings
+global_settings:
+  output_dir: "./evaluation_results"
+  predictions_cache_dir: "./prediction_cache"
+  cache_file: "./cache/linux_commands_dataset.json"
+  
+  # Match training hardware settings
+  batch_size: 16
+  use_4bit: true  # Match training quantization
+  num_workers: 4
+  
+  # Quantization settings 
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: "float16"
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_use_double_quant: true
+  
+  # Generation defaults
+  default_generation_params:
+    max_new_tokens: 100
+    temperature: 0.1
+    top_k: 50
+    top_p: 0.95
+    do_sample: false
+    num_beams: 1
+  
+  # Caching
+  cache_predictions: true
+
+# Evaluation configurations
+evaluations:
+  # Greedy decoding evaluation (matches training inference)
+  - name: "greedy_baseline"
+    description: "Greedy decoding baseline evaluation"
+    enabled: true
+    
+    generation_params:
+      max_new_tokens: 100
+      temperature: 0.1
+      top_k: 50
+      top_p: 0.95
+      do_sample: false
+      num_beams: 1
+    
+    models:
+      - name: "llama-3.2-1b-linux-v1"
+        adapter_path: "./results/llama-3.2-1b-linux-v1/final"
+        base_model_path: "./models/meta-llama/Llama-3.2-1B"
+        hf_repo_id: "meta-llama/Llama-3.2-1B"
+        config_set: "llama-3.2-1b"
+        batch_size: 16  # Evaluation batch size (can be larger than training)
+      
+      - name: "qwen2.5-1.5b-linux-v1"
+        adapter_path: "./results/qwen2.5-1.5b-linux-v1/final"
+        base_model_path: "./models/Qwen/Qwen2.5-1.5B-Instruct"
+        hf_repo_id: "Qwen/Qwen2.5-1.5B-Instruct"
+        config_set: "qwen2.5-1.5b"
+        batch_size: 16
+      
+      - name: "gemma-3-1b-linux-v1"
+        adapter_path: "./results/gemma-3-1b-linux-v1/final"
+        base_model_path: "./models/google/gemma-3-1b-it"
+        hf_repo_id: "google/gemma-3-1b-it"
+        config_set: "gemma-3-1b"
+        batch_size: 16
+      
+      - name: "phi-3-mini-linux-v1"
+        adapter_path: "./results/phi-3-mini-linux-v1/final"
+        base_model_path: "./models/microsoft/Phi-3-mini-4k-instruct"
+        hf_repo_id: "microsoft/Phi-3-mini-4k-instruct"
+        config_set: "phi-3-mini"
+        batch_size: 16
+
+  # Sampling evaluation (for diversity testing)
+  - name: "sampling_diverse"
+    description: "Sampling-based evaluation for diversity"
+    enabled: true
+    
+    generation_params:
+      max_new_tokens: 100
+      temperature: 0.7
+      top_k: 50
+      top_p: 0.95
+      do_sample: true
+      num_beams: 1
+    
+    models:
+      - name: "llama-3.2-1b-linux-v1"
+        adapter_path: "./results/llama-3.2-1b-linux-v1/final"
+        base_model_path: "./models/meta-llama/Llama-3.2-1B"
+        config_set: "llama-3.2-1b"
+      
+      - name: "qwen2.5-1.5b-linux-v1"
+        adapter_path: "./results/qwen2.5-1.5b-linux-v1/final"
+        base_model_path: "./models/Qwen/Qwen2.5-1.5B-Instruct"
+        config_set: "qwen2.5-1.5b"
+      
+      - name: "gemma-3-1b-linux-v1"
+        adapter_path: "./results/gemma-3-1b-linux-v1/final"
+        base_model_path: "./models/google/gemma-3-1b-it"
+        config_set: "gemma-3-1b"
+      
+      - name: "phi-3-mini-linux-v1"
+        adapter_path: "./results/phi-3-mini-linux-v1/final"
+        base_model_path: "./models/microsoft/Phi-3-mini-4k-instruct"
+        config_set: "phi-3-mini"
+
+# Prompt formatting - MATCH TRAINING
+prompt_template: "Convert to Linux command: {text} {command}"
+max_seq_length: 512  # Match training sequence length
+
+# Command normalization settings
+normalization:
+  lowercase: true
+  strip_whitespace: true
+  remove_extra_spaces: true
+  remove_quotes: true
+  max_command_words: 20
+  repetition_threshold: 0.3
+
+# Cache settings
+cache:
+  enabled: true
+  directory: "./prediction_cache"
+  cache_key_params:
+    - "temperature"
+    - "top_k"
+    - "top_p"
+    - "do_sample"
+    - "max_new_tokens"
+
+# Output configuration
+output:
+  save_predictions: true
+  save_examples: true
+  max_examples_saved: 20
+  update_aggregated_results: true
+  aggregated_results_file: "aggregated_results.json"
