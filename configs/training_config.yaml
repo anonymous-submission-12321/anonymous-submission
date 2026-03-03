@@ -1,0 +1,132 @@
+# Training Configuration for QLoRA Fine-tuning
+# This file centralizes all training parameters for Linux command generation models
+
+# Global settings applied to all models
+global_settings:
+  cache_file: "data/command_cache.json"
+  tokenized_cache_dir: "tokenized_cache"
+  output_base_dir: "./results"
+  
+  # Hardware settings
+  num_workers: 4
+  use_fp16: true
+  use_8bit_optimizer: true
+  
+  # Quantization settings (matching QLoRA paper)
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_compute_dtype: "float16"
+    bnb_4bit_quant_type: "nf4"
+    bnb_4bit_use_double_quant: true
+
+# Model-specific configurations
+models:
+  - name: "codellama-7b-linux-v1"
+    path: "codellama/CodeLlama-7b-hf"
+    description: "CodeLlama 7B fine-tuned on Linux commands"
+    enabled: true
+    
+    # LoRA configuration
+    lora:
+      r: 16
+      alpha: 32
+      dropout: 0.1
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      bias: "none"
+      task_type: "CAUSAL_LM"
+    
+    # Training hyperparameters
+    training:
+      num_epochs: 3
+      batch_size: 8
+      gradient_accumulation_steps: 2  # Auto-adjusted based on batch size
+      learning_rate: 2.0e-4
+      warmup_steps: 100
+      save_steps: 500
+      eval_steps: 500
+      logging_steps: 10
+      save_total_limit: 2
+      
+    # Data configuration
+    data:
+      max_seq_length: 512
+      prompt_template: "Convert to Linux command: {text} {command}"
+      padding: "max_length"
+      truncation: true
+    
+    # Model specific settings
+    disable_gradient_checkpointing: false
+    attn_implementation: "eager"  # Use "flash_attention_2" if available
+
+  - name: "deepseek-coder-6.7b-linux-v1"
+    path: "deepseek-ai/deepseek-coder-6.7b-instruct"
+    description: "DeepSeek Coder 6.7B fine-tuned on Linux commands"
+    enabled: true
+    
+    lora:
+      r: 16
+      alpha: 32
+      dropout: 0.1
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+      bias: "none"
+      task_type: "CAUSAL_LM"
+    
+    training:
+      num_epochs: 3
+      batch_size: 4  # Smaller batch for larger model
+      gradient_accumulation_steps: 4  # Adjusted for batch size
+      learning_rate: 1.5e-4
+      warmup_steps: 100
+      save_steps: 500
+      eval_steps: 500
+      logging_steps: 10
+      save_total_limit: 2
+    
+    data:
+      max_seq_length: 512
+      prompt_template: "Convert to Linux command: {text} {command}"
+      padding: "max_length"
+      truncation: true
+    
+    disable_gradient_checkpointing: false
+
+  - name: "mistral-7b-linux-v1"
+    path: "mistralai/Mistral-7B-v0.1"
+    description: "Mistral 7B fine-tuned on Linux commands"
+    enabled: false  # Disabled for now
+    
+    lora:
+      r: 16
+      alpha: 32
+      dropout: 0.1
+      target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+      bias: "none"
+      task_type: "CAUSAL_LM"
+    
+    training:
+      num_epochs: 3
+      batch_size: 8
+      gradient_accumulation_steps: 2
+      learning_rate: 2.0e-4
+      warmup_steps: 100
+      save_steps: 500
+      eval_steps: 500
+      logging_steps: 10
+      save_total_limit: 2
+    
+    data:
+      max_seq_length: 512
+      prompt_template: "Convert to Linux command: {text} {command}"
+      padding: "max_length"
+      truncation: true
+    
+    disable_gradient_checkpointing: false
+
+# Batch size to gradient accumulation mapping
+# Used for automatic calculation of gradient_accumulation_steps
+batch_size_to_grad_accum:
+  8: 2    # For faster iterations with larger batch
+  4: 4    # Balanced for medium models
+  2: 8    # For very small batches
+  1: 16   # For single-sample batches
+  default: 8  # Default fallback
