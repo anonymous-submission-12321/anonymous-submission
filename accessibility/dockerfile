@@ -1,0 +1,21 @@
+# Dockerfile for container execution (place in project root)
+FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    bash \
+    coreutils \
+    findutils \
+    grep \
+    sed \
+    gawk \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install transformers accelerate bitsandbytes
+
+# Set working directory
+WORKDIR /workspace
+
+# Entry point
+CMD ["/bin/bash"]
